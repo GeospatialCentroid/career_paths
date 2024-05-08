@@ -4,7 +4,7 @@ var group_field="full_name"
 var map_manager
 var map_layer
 var click_marker;
-
+var layer_rects=[];
 
 var transcription
 var transcription_mode;
@@ -15,6 +15,9 @@ var usp={};// the url params object to be populated
 var browser_control=false; //flag for auto selecting to prevent repeat cals
 
 var progress_interval;
+var geojson_markers;
+var clustered_points;
+var geojson;
 
 function setup_params(){
      usp = new URLSearchParams(window.location.search.substring(1).replaceAll("~", "'").replaceAll("+", " "))
@@ -72,6 +75,17 @@ function init(json){
         })
 
     map_manager.init()
+    show_data(json)
+    //map_manager.map.fitBounds(geojson_markers.getBounds());
+}
+function reset(json){
+     map_manager.map.removeLayer(click_marker);
+     map_manager.map.removeLayer(clustered_points);
+     map_manager.map.removeLayer(geojson);
+     layer_rects=[];
+     show_data(json)
+}
+function show_data(json){
 
     map_manager.show_geojson_points(json)
     map_manager.create_geojson_lines(json,group_field)
@@ -123,43 +137,20 @@ function save_params(){
 }
 
 
-load_annotation_geojson= function(url,extra){
-    $.ajax({
-        type: "GET",
-        url: url,
-        dataType: "json",
-        extra:extra,
-        success: function(json) {
-         parse_annotation(json,extra);
-         }
-     });
-}
-parse_annotation= function(json,extra){
-         var rect =   L.geoJson(json, {pane: 'left',color: 'blue'})
-         rect.title=extra["title"]
-         rect.tms=extra["tms"]
-         rect['annotation_url']=extra['annotation_url']
-         rect.toggle="show"
-         rect.addTo(map_manager.map);
-         layer_rects.push(rect)
-         rect.id=layer_rects.length-1
-         rect.on('click', function () {
-            toggle_layer(this.id)
-            this.off('click')
-         });
-}
-
 update_layer_list=function(){
-//    var html=""
-//    var map_bounds=map_manager.map.getBounds()
-//    for(var i =0;i<layer_rects.length;i++){
-//        if(map_bounds.intersects(layer_rects[i].getBounds())){
-//            html+=layer_rects[i].title+" <a id='layer_but_"+i+"' href='#' onclick='toggle_layer("+i+");'>"+layer_rects[i].toggle+"</a><br/>"
-//
-//        }
-//
-//    }
-//    $("#layer_list").html(html)
+    var html="<table>"
+    var map_bounds=map_manager.map.getBounds()
+    for(var i =0;i<layer_rects.length;i++){
+        var geom = L.GeoJSON.coordsToLatLngs(layer_rects[i].geometry.coordinates);
+        var line = L.polyline(geom);
+        if(map_bounds.intersects(line.getBounds())){
+            html+="<tr><td>"+layer_rects[i].properties.full_name+' </td><td><span class="marker" style="top:0px;left:0px;border-color: white;background-color: '+layer_rects[i].properties.color+';"></span></tr>'
+
+        }
+
+    }
+    html+="</table>"
+    $("#layer_list").html(html)
 }
 
 show_form=function(){
@@ -198,7 +189,8 @@ save_point = function(save_url,point_obj,change_type){
           data: data,
           success: function(_data) {
 
-                console.log(_data)
+               //reload the data
+               load_do(geojson_url,reset)
             }
         });
      map_manager.map.closePopup();

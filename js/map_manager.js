@@ -19,6 +19,9 @@ class Map_Manager {
     }
      this.map = L.map('map',{doubleClickZoom: false,
      }).setView([this.lat, this.lng], this.z);
+      this.map.options.minZoom = 2;
+
+
      this.markers=[]
   }
   init(){
@@ -88,45 +91,49 @@ class Map_Manager {
          this.grouped_data[props[_group_field]].push(obj)
     }
 
-    //start with points
+
+    //create a line for each group
     for(var i in this.grouped_data){
-            console.log(i)
-            //find a match with the markers
+            //sort points
+            this.grouped_data[i].sort((a, b) => a.properties.start_date - b.properties.start_date)
+
             var coords =[]
             for(var m=0;m<this.grouped_data[i].length;m++){
                 var obj = this.grouped_data[i][m]
                 coords.push(obj.geometry.coordinates)
+                // set all colors to the last set color in the group
+                obj.properties.color=this.grouped_data[i][this.grouped_data[i].length-1].properties.color
             }
              var obj_props=obj.properties;
 
              output_json["features"].push({ "type": 'Feature', "properties": obj_props, "geometry":{"coordinates": coords,"type": 'LineString'}})
         }
-    map_manager.show_geojson_lines(output_json)
+        //
+        map_manager.show_geojson_lines(output_json)
 }
  show_geojson_lines(_geojson){
 
-     var geojson = L.geoJson(_geojson, {
+     geojson = L.geoJson(_geojson, {
      style: function(feature) {
-        console.log(feature.properties.color)
+        layer_rects.push(feature)
         return {color: feature.properties.color}
 
     },
     onEachFeature: function (feature, layer) {
-              layer.bindPopup('<h4>'+feature.properties.full_name+'</h4>');
+              layer.bindPopup('<h6>'+feature.properties.full_name+'</h6>');
      }
     })
     this.map.addLayer(geojson);
-    console.log("Add to map")
+
     }
  show_geojson_points(_data){
 
       var $this=this
-      var geojson_markers;
-      var clustered_points = L.markerClusterGroup();
+       clustered_points = L.markerClusterGroup();
         var geojson_markers = L.geoJson(_data, {
           onEachFeature: function (feature, layer) {
                 var date_str = $.datepicker.formatDate( "yy-mm-dd", new Date(feature.properties.start_date) );
-              layer.bindPopup('<h4>'+feature.properties.full_name+'</h4>' +'<br/><span class="label"Place/Position:</span> '+feature.properties.place+'<br/><span class="label">Start Date:</span> '+date_str);
+              layer.bindPopup('<h6>'+feature.properties.full_name+'</h6>' +'<br/><span class="label"Place/Position:</span> '+feature.properties.place+'<br/><span class="label">Start Date:</span> '+date_str);
 
           },
           pointToLayer: function (feature, latlng) {
@@ -138,6 +145,10 @@ class Map_Manager {
         });
         clustered_points.addLayer(geojson_markers);
         this.map.addLayer(clustered_points);
+
+
+
+
     }
     highlight_marker(_id){
         for(var i=0;i<this.markers.length;i++){
