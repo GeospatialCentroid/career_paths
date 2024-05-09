@@ -18,6 +18,7 @@ var progress_interval;
 var geojson_markers;
 var clustered_points;
 var geojson;
+var selected_marker;
 
 function setup_params(){
      usp = new URLSearchParams(window.location.search.substring(1).replaceAll("~", "'").replaceAll("+", " "))
@@ -76,10 +77,18 @@ function init(json){
 
     map_manager.init()
     show_data(json)
-    //map_manager.map.fitBounds(geojson_markers.getBounds());
+    update_layer_list()
+    //only fit bounds if no 'e' set
+    if(typeof(params['e'])=='undefined'){
+        map_manager.map.fitBounds(geojson_markers.getBounds());
+
+    }
+
 }
 function reset(json){
-     map_manager.map.removeLayer(click_marker);
+    if(click_marker){
+        map_manager.map.removeLayer(click_marker);
+     }
      map_manager.map.removeLayer(clustered_points);
      map_manager.map.removeLayer(geojson);
      layer_rects=[];
@@ -144,8 +153,7 @@ update_layer_list=function(){
         var geom = L.GeoJSON.coordsToLatLngs(layer_rects[i].geometry.coordinates);
         var line = L.polyline(geom);
         if(map_bounds.intersects(line.getBounds())){
-            html+="<tr><td>"+layer_rects[i].properties.full_name+' </td><td><span class="marker" style="top:0px;left:0px;border-color: white;background-color: '+layer_rects[i].properties.color+';"></span></tr>'
-
+            html+='<tr><td><span class="marker" style="top:0px;left:0px;border-color: white;background-color: '+layer_rects[i].properties.color+';"></span></td><td>'+layer_rects[i].properties.full_name+' </td></tr>'
         }
 
     }
@@ -161,7 +169,7 @@ close_form =function(){
      $('#model_data_form').modal('hide');
 }
 post_data = function(){
-    var save_url = geojson_url.substring(0,geojson_url.lastIndexOf("query?"))+"applyEdits"
+
      var point_obj={
             "geometry": {
               "x": $('#lng').val(),
@@ -175,11 +183,12 @@ post_data = function(){
                  'color':$('#color').val()
             }
           }
-        save_point(save_url,point_obj,'adds')
+        save_point(point_obj,'adds')
 
 }
 
-save_point = function(save_url,point_obj,change_type){
+save_point = function(point_obj,change_type){
+      var save_url = geojson_url.substring(0,geojson_url.lastIndexOf("query?"))+"applyEdits"
       var data ={f:"json"}
       data[change_type]=JSON.stringify(point_obj)
 
@@ -194,4 +203,15 @@ save_point = function(save_url,point_obj,change_type){
             }
         });
      map_manager.map.closePopup();
+}
+confirm_delete=function(_id){
+    selected_marker=_id
+    $('#confirm_delete').modal('show');
+}
+delete_selected_marker=function(){
+    save_point( [selected_marker],"deletes")
+     $('#confirm_delete').modal('hide');
+}
+close_confirm_delete=function(){
+ $('#confirm_delete').modal('hide');
 }

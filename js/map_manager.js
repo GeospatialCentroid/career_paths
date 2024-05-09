@@ -51,9 +51,6 @@ class Map_Manager {
 
     L.control.layer_list({ position: 'bottomleft' }).addTo( this.map);
 
-
-
-
     this.map.on("moveend", function () {
       update_layer_list();
       var c =  map_manager.map.getCenter()
@@ -98,12 +95,15 @@ class Map_Manager {
             this.grouped_data[i].sort((a, b) => a.properties.start_date - b.properties.start_date)
 
             var coords =[]
+            var compound_title=""
             for(var m=0;m<this.grouped_data[i].length;m++){
                 var obj = this.grouped_data[i][m]
+                compound_title+=$.datepicker.formatDate( "yy-mm-dd", new Date(obj.properties.start_date) )+' - <b>'+obj.properties.place+"</b><br/>"
                 coords.push(obj.geometry.coordinates)
                 // set all colors to the last set color in the group
                 obj.properties.color=this.grouped_data[i][this.grouped_data[i].length-1].properties.color
             }
+            obj.properties.compound_title=compound_title
              var obj_props=obj.properties;
 
              output_json["features"].push({ "type": 'Feature', "properties": obj_props, "geometry":{"coordinates": coords,"type": 'LineString'}})
@@ -120,7 +120,8 @@ class Map_Manager {
 
     },
     onEachFeature: function (feature, layer) {
-              layer.bindPopup('<h6>'+feature.properties.full_name+'</h6>');
+          var html='<h6>'+feature.properties.full_name+'</h6>'+feature.properties.compound_title
+          layer.bindPopup(html);
      }
     })
     this.map.addLayer(geojson);
@@ -130,11 +131,12 @@ class Map_Manager {
 
       var $this=this
        clustered_points = L.markerClusterGroup();
-        var geojson_markers = L.geoJson(_data, {
+          geojson_markers = L.geoJson(_data, {
           onEachFeature: function (feature, layer) {
                 var date_str = $.datepicker.formatDate( "yy-mm-dd", new Date(feature.properties.start_date) );
-              layer.bindPopup('<h6>'+feature.properties.full_name+'</h6>' +'<br/><span class="label"Place/Position:</span> '+feature.properties.place+'<br/><span class="label">Start Date:</span> '+date_str);
-
+                var html='<h6>'+feature.properties.full_name+'</h6>' +'<br/><span class="label"Place/Position:</span> '+feature.properties.place+'<br/><span class="label">Start Date:</span> '+date_str;
+                html+='<br/><br/><button onclick="confirm_delete('+feature.properties.OBJECTID+')" type="button" class="btn btn-outline-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"></path><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"></path></svg></button>'
+                layer.bindPopup(html);
           },
           pointToLayer: function (feature, latlng) {
                 var extra='style="border-color: white;background-color: '+feature.properties.color+';"'
@@ -145,9 +147,6 @@ class Map_Manager {
         });
         clustered_points.addLayer(geojson_markers);
         this.map.addLayer(clustered_points);
-
-
-
 
     }
     highlight_marker(_id){
@@ -168,8 +167,6 @@ class Map_Manager {
           html: '<span class="marker" '+extra+'/>'
         })
     }
-    // township search
-
 
     create_marker(lat_lng){
         if(click_marker){
@@ -185,14 +182,22 @@ class Map_Manager {
         var popup = L.popup().setContent(html);
 
         click_marker.bindPopup(popup).openPopup();
+        this.setup_marker_form();
+
+        click_marker.on("click", function(){
+            map_manager.setup_marker_form();
+        });
+
+
+    }
+    setup_marker_form(){
+        var lat_lng= click_marker.getLatLng()
          $(".data_form_date").datetimepicker({
             timepicker:false,
             format:'Y-m-d',
             mask:true
         });
-         $('#lat').val(lat_lng["lat"]);
+        $('#lat').val(lat_lng["lat"]);
         $('#lng').val(lat_lng["lng"]);
-
     }
-
  }
